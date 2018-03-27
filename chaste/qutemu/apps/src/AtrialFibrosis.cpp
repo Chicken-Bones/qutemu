@@ -174,12 +174,11 @@ public:
 class AtrialFibrosis
 {
 private:
-    out_stream log_stream;
-
+    std::stringstream log_stream;
     void Log(std::string s)
     {
         if (PetscTools::AmMaster()) {
-            (*log_stream) << s << std::endl;
+            log_stream << s << std::endl;
             COUT(s);
         }
     }
@@ -270,18 +269,12 @@ private:
                defaultValue;
     }
 
-    OutputFileHandler InitOutputAndLog() {
+    OutputFileHandler InitOutput() {
         if (CommandLineArguments::Instance()->OptionExists("-outdir"))
             HeartConfig::Instance()->SetOutputDirectory(CommandLineArguments::Instance()->GetStringCorrespondingToOption("-outdir"));
 
-        OutputFileHandler output_file_handler(HeartConfig::Instance()->GetOutputDirectory(), false);
-
-        if (PetscTools::AmMaster())
-            log_stream = output_file_handler.OpenOutputFile("log.txt", std::ios::out);
-
         LOG("outdir: " << HeartConfig::Instance()->GetOutputDirectory());
-
-        return output_file_handler;
+        return OutputFileHandler(HeartConfig::Instance()->GetOutputDirectory(), false);
     }
 
     void InitTimesteps() {
@@ -302,20 +295,20 @@ private:
 
     AtrialCellFactory InitCellFactory() {
         LOG("** CELLS **")
-        int cell_model = AtrialCellFactory::MALECKAR;
-        if (CommandLineArguments::Instance()->OptionExists("-cell")) {
+        std::string cellopt = "maleckar";
+        if (CommandLineArguments::Instance()->OptionExists("-cell"))
             std::string cellopt = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-cell");
-            if (cellopt == "maleckar")
-                cell_model = AtrialCellFactory::MALECKAR;
-            else if (cellopt == "courtemanche_sr")
-                cell_model = AtrialCellFactory::COURTEMANCHE_SR;
-            else if (cellopt == "courtemanche_caf")
-                cell_model = AtrialCellFactory::COURTEMANCHE_CAF;
-            else
-                EXCEPTION("Unknown Cell Model: " << cellopt);
 
-            LOG("cell: " << cellopt);
-        }
+        int cell_model;
+        if (cellopt == "maleckar")
+            cell_model = AtrialCellFactory::MALECKAR;
+        else if (cellopt == "courtemanche_sr")
+            cell_model = AtrialCellFactory::COURTEMANCHE_SR;
+        else if (cellopt == "courtemanche_caf")
+            cell_model = AtrialCellFactory::COURTEMANCHE_CAF;
+        else
+            EXCEPTION("Unknown Cell Model: " << cellopt);
+        LOG("cell: " << cellopt);
 
         // sinus pacing
         double ci_sinus = GetDoubleOption("-dsinus", 0.0); // coupling interval sinus
@@ -425,7 +418,17 @@ private:
         }
     }
 
-    void WritePermutation(OutputFileHandler output_file_handler, MonodomainProblem<3> *problem)
+    void WriteLog(OutputFileHandler out_dir)
+    {
+        if (!PetscTools::AmMaster())
+            return;
+
+        out_stream os = out_dir.OpenOutputFile("log.txt");
+        *os << log_stream.str();
+        os->close();
+    }
+
+    void WritePermutation(OutputFileHandler out_dir, MonodomainProblem<3> *problem)
     {
         if (!PetscTools::AmMaster())
             return;
@@ -434,7 +437,7 @@ private:
         if (perm_vec.size() == 0)
             return;
 
-        out_stream os = output_file_handler.OpenOutputFile("permutation.txt", std::ios::out);
+        out_stream os = out_dir.OpenOutputFile("permutation.txt");
         (*os) << "Meshfile Chaste" << std::endl;
         for (unsigned i = 0; i < perm_vec.size(); ++i)
             (*os) << i << ' ' << perm_vec[i] << std::endl;
@@ -446,7 +449,7 @@ public:
         SetSchemaLocations();
 
         COUT("Initializing");
-        OutputFileHandler out_dir = InitOutputAndLog();
+        OutputFileHandler out_dir = InitOutput();
         InitTimesteps();
         AtrialCellFactory cell_factory = InitCellFactory();
         MonodomainProblem<3>* problem = InitProblem(&cell_factory);
@@ -461,11 +464,13 @@ public:
         HeartEventHandler::Report();
         HeartEventHandler::Headings();
 
+        if (PetscTools::AmMaster())
+            out_dir.FindFile("progress_status.txt").Remove();
+
         WritePermutation(out_dir, problem);
+        WriteLog(out_dir);
 
         delete problem;
-        if (log_stream)
-            log_stream->close();
         COUT("Success");
     }
 };
