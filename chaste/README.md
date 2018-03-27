@@ -50,4 +50,5 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 | `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
 | `nodes` | `<nodelist>|<nodefile>` || Restrict output nodes (by number in .node file). A comma separated list of nodes to output or a file where each entry is a single line containing a node number. 
 | `fibrosis` | `<file>` || A file with one line per element, indicating how fibrotic the tissue is. Conductivity is scaled by `1 - fibrosis`
+
 \* Duration is measured from the start of the whole simulation, not from the end of the loaded simulation, so a longer value must be provided for continuation
