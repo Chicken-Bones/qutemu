@@ -297,7 +297,7 @@ private:
         LOG("** CELLS **")
         std::string cellopt = "maleckar";
         if (CommandLineArguments::Instance()->OptionExists("-cell"))
-            std::string cellopt = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-cell");
+            cellopt = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-cell");
 
         int cell_model;
         if (cellopt == "maleckar")
