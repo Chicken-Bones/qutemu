@@ -1,15 +1,19 @@
 # Chaste Project
 ### Installation
 1. Install Chaste 3.4, ideally using https://chaste.cs.ox.ac.uk/trac/wiki/InstallGuides/UbuntuPackage
-1.1. Chaste can be installed seamlessly in windows 10 using WSL and the Ubuntu app
+    * Chaste can be installed seamlessly in windows 10 using WSL and the Ubuntu app
 2. Ensure chaste compiles using cmake, become accustomed to the configure/make cycle and run some of the builtin cardiac tests
-2.1 You can run `make help` from the build directory to see a list of targets
-2.1 Chaste will take several hours to build all the tests, so if you want a quick setup and verify, just run  
+    * You can run `make help` from the build directory to see a list of targets
+    * Chaste will take several hours to build all the tests, so if you want a quick setup and verify, just run  
 ```
 make -j4 TestMonodomain3dRabbitHeartTutorial
 ctest -R TestMonodomain3dRabbitHearTutorial
 ```
 3. symlink this folder to /chaste-src/projects/qutemu
+    * If you're using WSL, make a directory link to have it show on both OS
+```
+mklink /D <chaste-src-dir>\projects\qutemu <repo-root>\chaste\qutemu
+```
 
 ### Building
 1. Run cmake to reconfigure, whenever files are added/removed
