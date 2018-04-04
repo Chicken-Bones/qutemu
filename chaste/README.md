@@ -1,6 +1,6 @@
 # Chaste Project
 ### Installation
-1. Install Chaste 3.4, ideally using https://chaste.cs.ox.ac.uk/chaste/tutorials/release_3.4/InstallGuides/UbuntuPackage.html
+1. Install Chaste 3.4, ideally using https://chaste.cs.ox.ac.uk/trac/wiki/InstallGuides/UbuntuPackage
 1.1. Chaste can be installed seamlessly in windows 10 using WSL and the Ubuntu app
 2. Ensure chaste compiles using cmake, become accustomed to the configure/make cycle and run some of the builtin cardiac tests
 2.1 You can run `make help` from the build directory to see a list of targets
