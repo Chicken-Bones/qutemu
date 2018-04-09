@@ -12,6 +12,7 @@
 
 #include "QutemuVersion.hpp"
 #include "FibrosisReader.hpp"
+#include "ActivationMapOutputModifier.hpp"
 
 #include <sys/resource.h>
 #include <Version.hpp>
@@ -258,13 +259,15 @@ private:
     }
 
     double GetDoubleOption(std::string pname, double defaultValue) {
-        return CommandLineArguments::Instance()->OptionExists(pname) ?
+        return CommandLineArguments::Instance()->OptionExists(pname) &&
+               CommandLineArguments::Instance()->GetNumberOfArgumentsForOption(pname) > 0 ?
                CommandLineArguments::Instance()->GetDoubleCorrespondingToOption(pname) :
                defaultValue;
     }
 
     int GetIntOption(std::string pname, int defaultValue) {
-        return CommandLineArguments::Instance()->OptionExists(pname) ?
+        return CommandLineArguments::Instance()->OptionExists(pname) &&
+               CommandLineArguments::Instance()->GetNumberOfArgumentsForOption(pname) > 0 ?
                CommandLineArguments::Instance()->GetIntCorrespondingToOption(pname) :
                defaultValue;
     }
@@ -353,6 +356,24 @@ private:
         std::sort(nodes.begin(), nodes.end());
     }
 
+    void AddActivationMap(MonodomainProblem<3>* problem) {
+        if (!CommandLineArguments::Instance()->OptionExists("-activationmap"))
+            return;
+
+        //get initial value from cell system
+        unsigned local_node0 = problem->rGetMesh().GetDistributedVectorFactory()->GetLow();
+        AbstractCardiacCellInterface* cell = problem->GetMonodomainTissue()->GetCardiacCell(local_node0);
+        AbstractUntemplatedParameterisedSystem* system = dynamic_cast<AbstractUntemplatedParameterisedSystem *>(cell);
+        double resting = system->GetSystemInformation()->GetInitialConditions()[cell->GetVoltageIndex()];
+        double threshold = GetDoubleOption("-activationmap", -50);
+
+        problem->AddOutputModifier(boost::shared_ptr<AbstractOutputModifier>(new ActivationMapOutputModifier("activation.h5", threshold, resting)));
+
+        LOG("activationmap:")
+        LOG("\tthreshold: " << threshold << "mV")
+        LOG("\tresting  : " << resting << "mV")
+    }
+
     MonodomainProblem<3> *InitProblem(AtrialCellFactory *cell_factory)
     {
         CommandLineArguments* args = CommandLineArguments::Instance();
@@ -375,7 +396,6 @@ private:
             problem->Initialise();
         }
 
-
         if (args->OptionExists("-nodes")) {
             std::string nodesopt = args->GetStringCorrespondingToOption("-nodes");
             std::vector<unsigned> nodes = ParseNodeOption(nodesopt);
@@ -383,6 +403,8 @@ private:
             problem->SetOutputNodes(nodes);
             LOG("nodes: " << nodesopt);
         }
+
+        AddActivationMap(problem);
 
         heartConfig->SetOutputFilenamePrefix("results");
         heartConfig->SetVisualizeWithMeshalyzer(false);
@@ -462,7 +484,6 @@ public:
 
         HeartEventHandler::Headings();
         HeartEventHandler::Report();
-        HeartEventHandler::Headings();
 
         if (PetscTools::AmMaster())
             out_dir.FindFile("progress_status.txt").Remove();
