@@ -54,11 +54,17 @@ public:
     
     AbstractCvodeCell* CreateCardiacCellForTissueNode(Node<3>* pNode)
     {
-    	//double x = pNode->rGetLocation()[0];
-    	//double y = pNode->rGetLocation()[1];
-    	//double z = pNode->rGetLocation()[2];
-    	unsigned pacing_site = pNode->rGetNodeAttributes()[1]; // 1-sinus, 2-extra, 0-nothing
-    	unsigned lvrv = pNode->rGetNodeAttributes()[0]; // 1-la, 2-ra
+        unsigned lvrv = 1;
+        unsigned pacing_site = 0;
+        if (pNode->HasNodeAttributes()) {//halo nodes have no attributes
+            std::vector<double>& attributes = pNode->rGetNodeAttributes();
+            lvrv = (unsigned)attributes[0];
+            pacing_site = (unsigned)attributes[1];
+        }
+
+        if (lvrv < 1 || lvrv > 2)
+            EXCEPTION("invalid lvrv " << lvrv << " at node " << pNode->GetIndex());
+
         boost::shared_ptr<AbstractStimulusFunction> stimulus;
         switch (pacing_site) {
             case 1:
@@ -73,9 +79,6 @@ public:
             default:
                 EXCEPTION("Unknown Pacing Site " << pacing_site << " at node " << pNode->GetIndex());
         }
-
-        if (lvrv < 1 || lvrv > 2)
-            EXCEPTION("invalid lvrv " << lvrv << " at node " << pNode->GetIndex());
 
         switch (p_cell_model) {
             case MALECKAR:
@@ -380,6 +383,9 @@ private:
         HeartConfig* heartConfig = HeartConfig::Instance();
         MonodomainProblem<3>* problem;
 
+        if (args->OptionExists("-svi"))
+            heartConfig->SetUseStateVariableInterpolation(true);
+
         LOG("** PROBLEM **")
         if (args->OptionExists("-loaddir")) {
             std::string loaddir = args->GetStringCorrespondingToOption("-loaddir");
@@ -389,12 +395,14 @@ private:
         else {
             std::string meshfile = args->GetStringCorrespondingToOption("-meshfile");
             LOG("meshfile: " << meshfile);
-            HeartConfig::Instance()->SetMeshFileName(meshfile, cp::media_type::Axisymmetric);
+            heartConfig->SetMeshFileName(meshfile, cp::media_type::Axisymmetric);
 
             problem = new MonodomainProblem<3>(cell_factory);
             problem->SetWriteInfo();
             problem->Initialise();
         }
+
+        LOG("svi: " << (heartConfig->GetUseStateVariableInterpolation() ? "true" : "false"))
 
         if (args->OptionExists("-nodes")) {
             std::string nodesopt = args->GetStringCorrespondingToOption("-nodes");
@@ -411,7 +419,7 @@ private:
         heartConfig->SetVisualizeWithCmgui(false);
         heartConfig->SetVisualizeWithVtk(false);
         heartConfig->SetVisualizeWithParallelVtk(!args->OptionExists("-novis"));
-        LOG("pvtk: " << (args->OptionExists("-novis") ? "false" : "true"));
+        LOG("pvtk: " << (heartConfig->GetVisualizeWithParallelVtk() ? "true" : "false"));
 
         return problem;
     }
