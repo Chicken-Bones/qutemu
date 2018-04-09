@@ -18,8 +18,10 @@ add_custom_command(OUTPUT
         ${CMAKE_CURRENT_BINARY_DIR}/src/QutemuVersion.cpp
         COMMAND ${CMAKE_COMMAND}
             "-DChaste_BINARY_DIR=${Chaste_BINARY_DIR}"
+            "-Dtimekeeper_exe=$<TARGET_FILE:timekeeper>"
             -P ${CMAKE_CURRENT_SOURCE_DIR}/src/UpdateBuildTime.cmake
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src"
+        DEPENDS timekeeper
         COMMENT "Generating Qutemu Build Timestamp"
         VERBATIM
         )

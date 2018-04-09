@@ -1,4 +1,7 @@
-file(READ ${Chaste_BINARY_DIR}/global/build_timestamp build_time)
+message(STATUS "updating buildtime...")
+execute_process(COMMAND ${timekeeper_exe})
+
+file(READ build_timestamp build_time)
 file(WRITE QutemuVersion.cpp
 "#include \"QutemuVersion.hpp\"
 
