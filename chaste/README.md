@@ -2,18 +2,22 @@
 ### Installation
 1. Install Chaste 3.4, ideally using https://chaste.cs.ox.ac.uk/trac/wiki/InstallGuides/UbuntuPackage
     * Chaste can be installed seamlessly in windows 10 using WSL and the Ubuntu app
+    * **Replace `git clone` with the develop branch of fork, https://github.com/Chicken-Bones/Chaste**
+    ```
+    git clone -b develop https://github.com/Chicken-Bones/Chaste.git Chaste
+    ```
 2. Ensure chaste compiles using cmake, become accustomed to the configure/make cycle and run some of the builtin cardiac tests
     * You can run `make help` from the build directory to see a list of targets
     * Chaste will take several hours to build all the tests, so if you want a quick setup and verify, just run  
-```
-make -j4 TestMonodomain3dRabbitHeartTutorial
-ctest -R TestMonodomain3dRabbitHearTutorial
-```
+    ```
+    make -j4 TestMonodomain3dRabbitHeartTutorial
+    ctest -R TestMonodomain3dRabbitHearTutorial
+    ```
 3. symlink this folder to /chaste-src/projects/qutemu
     * If you're using WSL, make a directory link to have it show on both OS
-```
-mklink /D <chaste-src-dir>\projects\qutemu <repo-root>\chaste\qutemu
-```
+    ```
+    mklink /D <chaste-src-dir>\projects\qutemu <repo-root>\chaste\qutemu
+    ```
 
 ### Building
 1. Run cmake to reconfigure, whenever files are added/removed
@@ -54,5 +58,7 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 | `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
 | `-nodes` | `<nodelist>`<br>`<nodefile>` || Restrict output nodes (by number in .node file). A comma separated list of nodes to output or a file where each entry is a single line containing a node number. 
 | `-fibrosis` | `<file>` || A file with one line per element, indicating how fibrotic the tissue is. Conductivity is scaled by `1 - fibrosis`
+| `-svi` ||| Enables state-variable interpolation https://chaste.cs.ox.ac.uk/trac/wiki/ChasteGuides/StateVariableInterpolation
+| `-activationmap` ||| Generates activationmap.h5 in the output directory containing activation time, APD and peak voltage at periodic snapshots
 
 \* Duration is measured from the start of the whole simulation, not from the end of the loaded simulation, so a longer value must be provided for continuation
