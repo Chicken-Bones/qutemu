@@ -1,4 +1,4 @@
-function ele = LoadEleIndices(path)
+function [ele, meta] = LoadEleIndices(path)
 %LoadEleIndices Tetgen .ele file loader
 %   LoadEleIndices(path) Loads the vertex data in a tetgen ele file into a
 %   MATLAB array. Vertices are returned as MATLAB indices (starting at 1)
@@ -16,6 +16,7 @@ read_data=cell2mat(textscan(file_obj,'','headerlines',1,'delimiter',' ','collect
 fclose(file_obj);
 
 ele = read_data(:,2:5)+1;
+meta = read_data(:, 6:end);
 
 end
 

@@ -1,4 +1,4 @@
-function pts = LoadNodeCoords(path)
+function [pts, meta] = LoadNodeCoords(path)
 %LoadNodeCoords Tetgen .ele file loader
 %   LoadNodeCoords(path) Loads the vertex data in a tetgen node file into a
 %   MATLAB array [X1 Y1 Z1; X2 Y2 Z2; ...
@@ -15,6 +15,7 @@ read_data=cell2mat(textscan(file_obj,'','headerlines',1,'delimiter',' ','collect
 fclose(file_obj);
 
 pts = read_data(:,2:4);
+meta = read_data(:, 5:end);
 
 end
 
