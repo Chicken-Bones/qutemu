@@ -13,8 +13,9 @@ reader = vtk.vtkXMLUnstructuredGridReader()
 reader.SetFileName(argv[1])
 reader.Update()
 ugrid = reader.GetOutput()
+
 pdata = ugrid.GetPointData()
-num_points = pdata.GetNumberOfTuples()
+cdata = ugrid.GetCellData()
 
 perm_path = argv[4] if len(argv) > 4 else path.join(path.dirname(argv[2]), "permutation.txt")
 print ('permuting: ' + perm_path)
@@ -28,20 +29,28 @@ h5file = h5py.File(argv[2], 'r')
 for key in h5file.keys():
     dataset = h5file[key]
 
-    if len(dataset.shape) < 2 or np.prod(dataset.shape[1:]) != num_points:
+    if len(dataset.shape) >= 2 and np.prod(dataset.shape[1:]) == pdata.GetNumberOfTuples():
+        target = pdata
+    elif len(dataset.shape) >= 2 and np.prod(dataset.shape[1:]) == cdata.GetNumberOfTuples():
+        target = cdata
+    else:
         print(dataset.name + ' has wrong shape: ' + str(dataset.shape))
         continue
 
+
     print ('converting: ' + dataset.name)
-    w = math.floor(math.log10(dataset.shape[0]))+1
-    for i in range(0, dataset.shape[0]):
+    dataset_count = dataset.shape[0]
+    w = int(math.floor(math.log10(dataset_count))+1)
+    for i in range(0, dataset_count):
         subset = np.squeeze(dataset[i, ...])
         if perm is not None:
             subset = subset[perm]
 
         arr = vtknp.numpy_to_vtk(subset, deep=1, array_type=vtk.VTK_FLOAT)
-        arr.SetName(dataset.name + '_' + str(i).zfill(w))
-        pdata.AddArray(arr)
+        name = dataset.name if dataset_count == 1 else dataset.name + '_' + str(i).zfill(w)
+        arr.SetName(name)
+
+        target.AddArray(arr)
         print('added: ' + arr.GetName())
 
 out_path = argv[3] if len(argv) > 3 else path.splitext(argv[2])[0] + ".vtu"
