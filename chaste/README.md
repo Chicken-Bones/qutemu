@@ -1,3 +1,4 @@
+
 # Chaste Project
 ### Installation
 1. Install Chaste 3.4, ideally using https://chaste.cs.ox.ac.uk/trac/wiki/InstallGuides/UbuntuPackage
@@ -43,22 +44,24 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 | `-outdir` | `<dir>` | `ChasteResults` | sets output directory to `testoutput/<dir>`
 | `-loaddir` | `<dir>` |  | Simulation will be resumed* from a state in `testoutput/<dir>`. `-meshfile` will be ignored
 | `-savedir` | `<dir>` |  | Simulation will be saved in `testoutput/<dir>`
-| `-novis` ||| Suppress vtk output
+| `-nodes` | `<nodelist>`<br>`<nodefile>` || Restrict output nodes (by number in .node file). A comma separated list of nodes to output or a file where each entry is a single line containing a node number. |
+| `-vtk` ||| Enable vtk output |
 | `-duration` | `<length>` | `5` | length of simlation (ms) |
 | `-interval` | `<period>` | `5` | Data output/logging interval for results.h5 and results.[p]vtk (ms) |
 | `-odet` | `<step>` | `0.02` | maximum ODE integration step (ms) |
 | `-pdet` | `<step>` | `<odet>` | maximum PDE integration step (ms) |
 | `-cell` | `maleckar`<br>`courtemanche_sr`<br>`courtemanche_caf` | `maleckar` | cell model to use |
+| `-sinus` | `<timelist>`<br>`<timefile>` || A comma separated list or newline separated file containing the stimulus times. Specifying this option will ignore `-psinus` and `-nsinus`. `-dsinus` can be used to add a constant to time values in this option. |
 | `-dsinus` | `<delay>` | `0` | Delay before the first sinoatrial node trigger (ms) |
 | `-psinus` | `<period>` | `500` | Period of sinoatrial trigger (ms) |
 | `-nsinus` | `<num>` | `4` | Number of sinoatrial triggers  |
+| `-extra` | `<timelist>`<br>`<timefile>` || `-sinus` for ectopic stimulus. Times are relative to the end of the sinus stimulus.  |
 | `-dextra` | `<delay>` | `300` | Delay between last sinoatrial trigger and first ectopic trigger (ms) |
 | `-pextra` | `<period>` | `150` | Period of ectopic trigger (ms) |
 | `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
 | `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
-| `-nodes` | `<nodelist>`<br>`<nodefile>` || Restrict output nodes (by number in .node file). A comma separated list of nodes to output or a file where each entry is a single line containing a node number. 
-| `-fibrosis` | `<file>` || A file with one line per element, indicating how fibrotic the tissue is. Conductivity is scaled by `1 - fibrosis`
+| `-condmod` | `<file>` || A file with one line per element containing conductivity multipliers
 | `-svi` ||| Enables state-variable interpolation https://chaste.cs.ox.ac.uk/trac/wiki/ChasteGuides/StateVariableInterpolation
-| `-activationmap` ||| Generates activationmap.h5 in the output directory containing activation time, APD and peak voltage at periodic snapshots
+| `-activation` | `<threshold>` | `-40` | Activation threshold used for generating snapshots (mV). |
 
 \* Duration is measured from the start of the whole simulation, not from the end of the loaded simulation, so a longer value must be provided for continuation
