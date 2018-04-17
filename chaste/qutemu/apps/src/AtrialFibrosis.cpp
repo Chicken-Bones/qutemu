@@ -11,7 +11,7 @@
 #include "courtemanche_ramirez_nattel_1998_cAFCvodeOpt.hpp"
 
 #include "QutemuVersion.hpp"
-#include "FibrosisReader.hpp"
+#include "ConductivityReader.hpp"
 #include "ActivationMapOutputModifier.hpp"
 
 #include <sys/resource.h>
@@ -104,18 +104,18 @@ private:
 	
     c_matrix<double,3,3> mTensor;
     AbstractTetrahedralMesh<3,3>* pMesh;
-    std::vector<double> fibrosis_vec;
+    std::vector<float> conductivities;
     
 public:
     AtrialConductivityModifier() {}
 
-    AtrialConductivityModifier(AbstractTetrahedralMesh<3,3>* mesh, const std::vector<double> &fibrosis_vec) :
+    AtrialConductivityModifier(AbstractTetrahedralMesh<3,3>* mesh, const std::vector<float> &conductivities) :
             AbstractConductivityModifier<3,3>(),
             mTensor(zero_matrix<double>(3,3)),
             pMesh(mesh),
-            fibrosis_vec(fibrosis_vec)
+            conductivities(conductivities)
     {
-        assert(fibrosis_vec.size() == 0 || fibrosis_vec.size() == mesh->GetNumElements());
+        assert(conductivities.size() == 0 || conductivities.size() == mesh->GetNumElements());
     }
     
     c_matrix<double,3,3>& rCalculateModifiedConductivityTensor(unsigned elementIndex, const c_matrix<double,3,3>& rOriginalConductivity, unsigned domainIndex)
@@ -161,9 +161,9 @@ public:
             EXCEPTION("Unknown cell class " << a << " at " << elementIndex);
         }
 
-        if (fibrosis_vec.size() > 0)
+        if (conductivities.size() > 0)
         {
-            double f = 1 - fibrosis_vec[elementIndex];
+            double f = conductivities[elementIndex];
             gll *= f;
             gtt *= f;
         }
@@ -332,8 +332,8 @@ private:
         LOG("\tlast  : " << stoptime_sinus << "ms");
 
         // extra stimuli
-        double ci_extra = GetDoubleOption("-dextra", 300.0); // coupling interval extra
-        double bcl_extra = GetDoubleOption("-pextra", 150.0); // cycle length extra
+        double ci_extra = GetDoubleOption("-dextra", 400.0); // coupling interval extra
+        double bcl_extra = GetDoubleOption("-pextra", 300.0); // cycle length extra
         unsigned nstimuli_extra = GetIntOption("-nextra", 6);
         double starttime_extra = stoptime_sinus+ci_extra;
         double stoptime_extra = starttime_extra + ((double)nstimuli_extra-1)*bcl_extra;
@@ -427,15 +427,14 @@ private:
     void InitConductivities(MonodomainProblem<3> *problem, AtrialConductivityModifier& modifier) {
         HeartConfig::Instance()->SetIntracellularConductivities(Create_c_vector(1.75, 0.19, 0.19));
 
-        std::vector<double> fibrosis;
-        if (CommandLineArguments::Instance()->OptionExists("-fibrosis")) {
-            std::string path = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-fibrosis");
-            LOG("fibrosis: " << path);
-            FibrosisReader reader(FileFinder(path, RelativeTo::AbsoluteOrCwd));
-            reader.GetAll(fibrosis);
+        std::vector<float> conductivities;
+        if (CommandLineArguments::Instance()->OptionExists("-condmod")) {
+            std::string path = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-condmod");
+            LOG("conductivities: " << path);
+            conductivities = ConductivityReader::ReadConductivities(FileFinder(path, RelativeTo::AbsoluteOrCwd));
         }
 
-        modifier = AtrialConductivityModifier(&problem->rGetMesh(), fibrosis);
+        modifier = AtrialConductivityModifier(&problem->rGetMesh(), conductivities);
         problem->GetTissue()->SetConductivityModifier( &modifier );
     }
 
