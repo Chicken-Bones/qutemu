@@ -338,7 +338,7 @@ private:
 
     AtrialCellFactory InitCellFactory(std::vector<double> &rStimTimes) {
         LOG("** CELLS **")
-        std::string cellopt = "maleckar";
+        std::string cellopt = "courtemanche_sr";
         if (CommandLineArguments::Instance()->OptionExists("-cell"))
             cellopt = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-cell");
 
@@ -507,7 +507,7 @@ public:
             out_dir.FindFile("progress_status.txt").Remove();
 
         WritePermutation(out_dir, problem);
-        
+
         LOG("finished: " << std::setprecision(3) << std::fixed << (Timer::GetWallTime() - start_time) << "s");
         WriteLog(out_dir);
 

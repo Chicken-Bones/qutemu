@@ -50,7 +50,7 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 | `-interval` | `<period>` | `5` | Data output/logging interval for results.h5 and results.[p]vtk (ms) |
 | `-odet` | `<step>` | `0.02` | maximum ODE integration step (ms) |
 | `-pdet` | `<step>` | `<odet>` | maximum PDE integration step (ms) |
-| `-cell` | `maleckar`<br>`courtemanche_sr`<br>`courtemanche_caf` | `maleckar` | cell model to use |
+| `-cell` | `maleckar`<br>`courtemanche_sr`<br>`courtemanche_caf` | `courtemanche_sr` | cell model to use |
 | `-sinus` | `<timelist>`<br>`<timefile>` || A comma separated list or newline separated file containing the stimulus times. Specifying this option will ignore `-psinus` and `-nsinus`. `-dsinus` can be used to add a constant to time values in this option. |
 | `-dsinus` | `<delay>` | `0` | Delay before the first sinoatrial node trigger (ms) |
 | `-psinus` | `<period>` | `500` | Period of sinoatrial trigger (ms) |
