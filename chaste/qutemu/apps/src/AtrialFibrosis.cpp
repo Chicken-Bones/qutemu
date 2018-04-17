@@ -369,18 +369,19 @@ private:
         std::sort(nodes.begin(), nodes.end());
     }
 
-    void AddActivationMap(MonodomainProblem<3>* problem) {
-        if (!CommandLineArguments::Instance()->OptionExists("-activationmap"))
+    void AddActivationMap(MonodomainProblem<3> *problem, const std::vector<double> &rStimTimes) {
+        if (CommandLineArguments::Instance()->OptionExists("-nosnapshots"))
             return;
 
         //get initial value from cell system
         unsigned local_node0 = problem->rGetMesh().GetDistributedVectorFactory()->GetLow();
         AbstractCardiacCellInterface* cell = problem->GetMonodomainTissue()->GetCardiacCell(local_node0);
-        AbstractUntemplatedParameterisedSystem* system = dynamic_cast<AbstractUntemplatedParameterisedSystem *>(cell);
+        auto* system = dynamic_cast<AbstractUntemplatedParameterisedSystem *>(cell);
         double resting = system->GetSystemInformation()->GetInitialConditions()[cell->GetVoltageIndex()];
-        double threshold = GetDoubleOption("-activationmap", -50);
+        double threshold = GetDoubleOption("-activation", -40);
 
-        problem->AddOutputModifier(boost::shared_ptr<AbstractOutputModifier>(new ActivationMapOutputModifier("activation.h5", threshold, resting)));
+        problem->AddOutputModifier(boost::shared_ptr<AbstractOutputModifier>(new ActivationMapOutputModifier("snapshots.h5", threshold, resting, rStimTimes)));
+        problem->AddOutputModifier(boost::shared_ptr<AbstractOutputModifier>(new ActivationMapOutputModifier("snapshots_dyn.h5", threshold, resting)));
 
         LOG("activationmap:")
         LOG("\tthreshold: " << threshold << "mV")
@@ -421,13 +422,11 @@ private:
             LOG("nodes: " << args->GetStringCorrespondingToOption("-nodes"));
         }
 
-        AddActivationMap(problem);
-
         heartConfig->SetOutputFilenamePrefix("results");
         heartConfig->SetVisualizeWithMeshalyzer(false);
         heartConfig->SetVisualizeWithCmgui(false);
         heartConfig->SetVisualizeWithVtk(false);
-        heartConfig->SetVisualizeWithParallelVtk(!args->OptionExists("-novis"));
+        heartConfig->SetVisualizeWithParallelVtk(args->OptionExists("-novis"));
         LOG("pvtk: " << (heartConfig->GetVisualizeWithParallelVtk() ? "true" : "false"));
 
         return problem;
@@ -495,6 +494,7 @@ public:
         MonodomainProblem<3>* problem = InitProblem(&cell_factory);
         AtrialConductivityModifier conductivity_modifier;
         InitConductivities(problem, conductivity_modifier);
+        AddActivationMap(problem, stim_times);
 
         COUT("Solving");
         problem->Solve();

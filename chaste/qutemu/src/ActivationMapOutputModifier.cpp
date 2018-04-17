@@ -33,7 +33,8 @@ void ActivationMapOutputModifier::InitialiseAtStart(DistributedVectorFactory *pV
     mNumberOwned = pVectorFactory->GetLocalOwnership();
 
     mActivationState.assign(mNumberOwned, false);
-    BOOST_FOREACH(Variable* var, mVariables)
+    mCurrentPeak.assign(mNumberOwned, mThresholdVoltage);
+    for (Variable* var : mVariables)
         CreateDataset(var);
 }
 
@@ -42,7 +43,7 @@ void ActivationMapOutputModifier::CreateDataset(Variable* var) {
 
     hsize_t data_dims[2] = {1, mNumNodes};
     hsize_t max_dims[2] = {H5S_UNLIMITED, mNumNodes};
-    hsize_t chunking[2] = {1, mNumNodes};//one window per chunk, (~1MB for 256k nodes)
+    hsize_t chunking[2] = {1, mNumNodes};//one snapshot per chunk, (~1MB for 256k nodes)
 
     hid_t dcpl = H5Pcreate (H5P_DATASET_CREATE);
     H5Pset_chunk(dcpl, 2, chunking);
@@ -56,15 +57,47 @@ void ActivationMapOutputModifier::Close() {
     if (!mFileId)
         return;
 
-    BOOST_FOREACH(Variable* var, mVariables)
+    for (Variable* var : mVariables)
         H5Dclose(var->mVarId);
 
     H5Fclose(mFileId);
     mFileId = 0;
 }
 
-void ActivationMapOutputModifier::SaveWindow() {
-    BOOST_FOREACH(Variable* var, mVariables)
+bool ActivationMapOutputModifier::IsSnapshotTime(float time, double* pSolution, unsigned problemDim) {
+    if (!mSnapshotTimes.empty()) {
+        if (!mAnyActivated)
+            return false;
+
+        for (double t : mSnapshotTimes)
+            if (t == time)
+                return true;
+
+        return false;
+    }
+
+    unsigned new_snapshot = false;
+    for (unsigned local_index=0; local_index < mNumberOwned; local_index++)
+    {
+        double v = pSolution[local_index*problemDim];
+        if (!mActivationState[local_index] && v > mThresholdVoltage && //activation
+            mActivationTime[local_index] >= mCurStartTime)//reactivation (NaN comparison returns false)
+        {
+            new_snapshot = true;
+            std::cout << "Snapshot trigger." <<
+                      " node: " << mLo + local_index <<
+                      " on " << PetscTools::GetMyRank() <<
+                      ", period: " << time - mActivationTime[local_index] << std::endl;
+            break;
+        }
+    }
+
+    MPI_Allreduce(MPI_IN_PLACE, &new_snapshot, 1, MPI_UNSIGNED, MPI_LOR, PETSC_COMM_WORLD);
+    return new_snapshot;
+}
+
+void ActivationMapOutputModifier::SaveSnapshot() {
+    for (Variable* var : mVariables)
         SaveDataset(var);
 
     LOG("snapshot: " << mCurStartTime << "-" << mLastProcessedTime << "");
@@ -106,7 +139,7 @@ void ActivationMapOutputModifier::SaveDataset(Variable* var) {
 }
 
 void ActivationMapOutputModifier::FinaliseAtEnd() {
-    SaveWindow();
+    SaveSnapshot();
     Close();
 }
 
@@ -118,26 +151,8 @@ void ActivationMapOutputModifier::ProcessSolutionAtTimeStep(double time, Vec sol
     double* p_solution;
     VecGetArray(solution, &p_solution);
 
-    unsigned new_window = false;
-    for (unsigned local_index=0; local_index < mNumberOwned; local_index++)
-    {
-        double v = p_solution[local_index*problemDim];
-        if (!mActivationState[local_index] && v > mThresholdVoltage && //activation
-                mActivationTime[local_index] >= mCurStartTime)//reactivation (NaN comparison returns false)
-        {
-            new_window = true;
-            std::cout << "Window trigger." <<
-                      " node: " << mLo + local_index <<
-                      " on " << PetscTools::GetMyRank() <<
-                      ", period: " << time - mActivationTime[local_index] << std::endl;
-            break;
-        }
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, &new_window, 1, MPI_UNSIGNED, MPI_LOR, PETSC_COMM_WORLD);
-
-    if (new_window) {
-        SaveWindow();
+    if (IsSnapshotTime(time, p_solution, problemDim)) {
+        SaveSnapshot();
         mActivationIndex++;
         mCurStartTime = time;
     }
@@ -146,22 +161,24 @@ void ActivationMapOutputModifier::ProcessSolutionAtTimeStep(double time, Vec sol
     {
         double v = p_solution[local_index*problemDim];
         float& activation_time = mActivationTime[local_index];
-        float& peak = mPeakVoltage[local_index];
-        float& apd = mActionPotentialDuration[local_index];
+        float& peak = mCurrentPeak[local_index];
 
         if (!mActivationState[local_index] && v > mThresholdVoltage) {//activation
             mActivationState[local_index] = true;
             activation_time = (float)time;
             peak = (float)v; //reset peak voltage
+            mAnyActivated = true;
         }
         if (mActivationState[local_index]) {
             //update peak
             if (v > peak)
                 peak = (float)v;
+
             // APD90, deactivation
             if (v < peak - (peak - mRestingVoltage) * 0.9) {
                 mActivationState[local_index] = false;
-                apd = (float)(time - activation_time);
+                mPeakVoltage[local_index] = peak;
+                mActionPotentialDuration[local_index] = (float)(time - activation_time);
             }
         }
     }
