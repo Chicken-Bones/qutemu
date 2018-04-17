@@ -460,7 +460,6 @@ private:
         if (!PetscTools::AmMaster())
             return;
 
-        LOG("finished: " << std::setprecision(3) << std::fixed << Timer::GetWallTime() << "s");
         out_stream os = out_dir.OpenOutputFile("log.txt");
         *os << QutemuLog::GetLog();
         os->close();
@@ -484,6 +483,7 @@ private:
 public:
     void TestMonodomain3dAtria() throw(Exception)
     {
+        double start_time = Timer::GetWallTime();
         SetSchemaLocations();
 
         COUT("Initializing");
@@ -507,6 +507,8 @@ public:
             out_dir.FindFile("progress_status.txt").Remove();
 
         WritePermutation(out_dir, problem);
+        
+        LOG("finished: " << std::setprecision(3) << std::fixed << (Timer::GetWallTime() - start_time) << "s");
         WriteLog(out_dir);
 
         delete problem;

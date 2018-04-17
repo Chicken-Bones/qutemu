@@ -100,7 +100,7 @@ void ActivationMapOutputModifier::SaveSnapshot() {
     for (Variable* var : mVariables)
         SaveDataset(var);
 
-    LOG("snapshot: " << mCurStartTime << "-" << mLastProcessedTime << "");
+    LOG("snapshot: " << mCurStartTime << "-" << mLastProcessedTime << " (" << mFilename << ")");
 }
 
 void ActivationMapOutputModifier::SaveDataset(Variable* var) {
