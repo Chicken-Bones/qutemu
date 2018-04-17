@@ -3,6 +3,7 @@
 #include "HeartConfig.hpp"
 
 #include "ActivationMapOutputModifier.hpp"
+#include "QutemuLog.hpp"
 
 ActivationMapOutputModifier::~ActivationMapOutputModifier() {
     Close();
@@ -66,8 +67,7 @@ void ActivationMapOutputModifier::SaveWindow() {
     BOOST_FOREACH(Variable* var, mVariables)
         SaveDataset(var);
 
-    if (PetscTools::AmMaster())
-        std::cout << "Saving Window (" << mCurStartTime << "-" << mLastProcessedTime << ")" << std::endl;
+    LOG("snapshot: " << mCurStartTime << "-" << mLastProcessedTime << "");
 }
 
 void ActivationMapOutputModifier::SaveDataset(Variable* var) {

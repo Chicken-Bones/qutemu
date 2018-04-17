@@ -10,21 +10,15 @@
 #include "courtemanche_ramirez_nattel_1998_SRCvodeOpt.hpp"
 #include "courtemanche_ramirez_nattel_1998_cAFCvodeOpt.hpp"
 
+#include "QutemuLog.hpp"
 #include "QutemuVersion.hpp"
 #include "ConductivityReader.hpp"
 #include "ActivationMapOutputModifier.hpp"
+#include "TimedStimulus.hpp"
 
 #include <sys/resource.h>
 #include <Version.hpp>
-#include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
-
-#define COUT(msg) if (PetscTools::AmMaster()) std::cout << msg << std::endl << std::flush
-#define LOG(msg) { \
-    std::stringstream ss; \
-    ss << msg; \
-    AtrialFibrosis::Log(ss.str()); \
-    }
 
 class AtrialCellFactory : public AbstractCardiacCellFactory<3> // <3> here
 {
@@ -178,15 +172,6 @@ public:
 class AtrialFibrosis
 {
 private:
-    std::stringstream log_stream;
-    void Log(std::string s)
-    {
-        if (PetscTools::AmMaster()) {
-            log_stream << s << std::endl;
-            COUT(s);
-        }
-    }
-
     double GetMemoryUsage()
     {
     	struct rusage rusage;
@@ -452,8 +437,9 @@ private:
         if (!PetscTools::AmMaster())
             return;
 
+        LOG("finished: " << std::setprecision(3) << std::fixed << Timer::GetWallTime() << "s");
         out_stream os = out_dir.OpenOutputFile("log.txt");
-        *os << log_stream.str();
+        *os << QutemuLog::GetLog();
         os->close();
     }
 
