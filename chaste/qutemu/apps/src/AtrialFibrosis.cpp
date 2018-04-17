@@ -426,8 +426,8 @@ private:
         heartConfig->SetVisualizeWithMeshalyzer(false);
         heartConfig->SetVisualizeWithCmgui(false);
         heartConfig->SetVisualizeWithVtk(false);
-        heartConfig->SetVisualizeWithParallelVtk(args->OptionExists("-novis"));
-        LOG("pvtk: " << (heartConfig->GetVisualizeWithParallelVtk() ? "true" : "false"));
+        heartConfig->SetVisualizeWithParallelVtk(args->OptionExists("-vtk"));
+        LOG("vtk: " << (heartConfig->GetVisualizeWithParallelVtk() ? "true" : "false"));
 
         return problem;
     }
