@@ -215,21 +215,27 @@ private:
         }
     }
 
-    std::vector<unsigned> ParseNodeOption(std::string option)
+    template<class T>
+    std::vector<T> ParseMultiValueOption(std::string optname)
     {
-        std::vector<unsigned> nodes;
+        std::string option = CommandLineArguments::Instance()->GetValueCorrespondingToOption(optname);
+        std::vector<T> nodes;
         if (option.find(',') != std::string::npos) {
             std::stringstream ss(option);
             std::string item;
-            while (std::getline(ss, item, ','))
-                nodes.push_back(boost::lexical_cast<unsigned>(item));
+            try {
+                while (std::getline(ss, item, ','))
+                    nodes.push_back(boost::lexical_cast<T>(item));
+            } catch (boost::bad_lexical_cast e) {
+                EXCEPTION("Invalid value: '" << item << "' while parsing " << optname);
+            }
 
             return nodes;
         }
 
         try
         {
-            nodes.push_back(boost::lexical_cast<unsigned>(option));
+            nodes.push_back(boost::lexical_cast<T>(option));
             return nodes;
         }
         catch(const boost::bad_lexical_cast &e)
@@ -237,11 +243,15 @@ private:
 
         std::ifstream file(option.c_str(), std::ios::in);
         if (!file.is_open())
-            EXCEPTION("Couldn't open nodes file: " + option);
+            EXCEPTION("Couldn't open file: " + option);
 
         std::string line;
-        while (std::getline(file, line))
-            nodes.push_back(boost::lexical_cast<unsigned>(line));
+        try {
+            while (std::getline(file, line))
+                nodes.push_back(boost::lexical_cast<T>(line));
+        } catch (boost::bad_lexical_cast e) {
+            EXCEPTION("Invalid value: '" << line << "' in file '" << option << "' while parsing " << optname);
+        }
 
         return nodes;
     }
@@ -284,7 +294,49 @@ private:
         LOG("pdet    : " << pdet << "ms");
     }
 
-    AtrialCellFactory InitCellFactory() {
+    boost::shared_ptr<AbstractStimulusFunction> InitStimulus(std::string name, std::vector<double> &rStimTimes,
+            unsigned defaultN, double defaultDelay, double defaultPeriod) {
+
+        bool user_defined = CommandLineArguments::Instance()->OptionExists("-"+name);
+
+        double offset = rStimTimes.empty() ? 0 : rStimTimes.back();
+        offset += GetDoubleOption("-d"+name, user_defined ? 0 : defaultDelay);
+
+        double period;
+        std::vector<double> times;
+        if (user_defined) {
+            times = ParseMultiValueOption<double>("-"+name);
+            for (double &t : times)
+                t += offset;
+        } else {
+            period = GetDoubleOption("-p"+name, defaultPeriod);
+            int nstimuli = (unsigned)GetIntOption("-n"+name, defaultN);
+            for (int i = 0; i < nstimuli; i++)
+                times.push_back(offset + i*period);
+        }
+
+        LOG(name << ":");
+        LOG("\tcycles: " << times.size());
+        if (!times.empty()) {
+            LOG("\tfirst : " << times[0] << "ms");
+            LOG("\tlast  : " << times.back() << "ms");
+            if (user_defined) {
+                std::stringstream ss;
+                ss << times[0];
+                for (unsigned i = 1; i < times.size(); i++)
+                    ss << ", " << times[i];
+
+                LOG("\ttimes : " << ss.str());
+            }
+            else
+                LOG("\tperiod: " << period << "ms");
+        }
+
+        rStimTimes.insert( rStimTimes.end(), times.begin(), times.end() );
+        return boost::shared_ptr<AbstractStimulusFunction>(new TimedStimulus(-80000.0, 1.0, times));
+    }
+
+    AtrialCellFactory InitCellFactory(std::vector<double> &rStimTimes) {
         LOG("** CELLS **")
         std::string cellopt = "maleckar";
         if (CommandLineArguments::Instance()->OptionExists("-cell"))
@@ -301,35 +353,8 @@ private:
             EXCEPTION("Unknown Cell Model: " << cellopt);
         LOG("cell: " << cellopt);
 
-        // sinus pacing
-        double ci_sinus = GetDoubleOption("-dsinus", 0.0); // coupling interval sinus
-        double bcl_sinus = GetDoubleOption("-psinus", 500.0); // cycle length sinus
-        unsigned nstimuli_sinus = GetIntOption("-nsinus", 4);
-        double starttime_sinus = ci_sinus;
-        double stoptime_sinus = starttime_sinus + ((double)nstimuli_sinus-1)*bcl_sinus;
-        boost::shared_ptr<AbstractStimulusFunction> p_stim_sinus = boost::shared_ptr<AbstractStimulusFunction>(
-                new RegularStimulus(-80000.0, 1.0, bcl_sinus, starttime_sinus, stoptime_sinus + 2.0));
-
-        LOG("sinus:")
-        LOG("\tcycles: " << nstimuli_sinus);
-        LOG("\tperiod: " << bcl_sinus << "ms");
-        LOG("\tfirst : " << starttime_sinus << "ms");
-        LOG("\tlast  : " << stoptime_sinus << "ms");
-
-        // extra stimuli
-        double ci_extra = GetDoubleOption("-dextra", 400.0); // coupling interval extra
-        double bcl_extra = GetDoubleOption("-pextra", 300.0); // cycle length extra
-        unsigned nstimuli_extra = GetIntOption("-nextra", 6);
-        double starttime_extra = stoptime_sinus+ci_extra;
-        double stoptime_extra = starttime_extra + ((double)nstimuli_extra-1)*bcl_extra;
-        boost::shared_ptr<AbstractStimulusFunction> p_stim_extra = boost::shared_ptr<AbstractStimulusFunction>(
-                new RegularStimulus(-80000.0, 1.0, bcl_extra, starttime_extra, stoptime_extra + 2.0));
-
-        LOG("extra:")
-        LOG("\tcycles: " << nstimuli_extra);
-        LOG("\tperiod: " << bcl_extra << "ms");
-        LOG("\tfirst : " << starttime_extra << "ms");
-        LOG("\tlast  : " << stoptime_extra << "ms");
+        auto p_stim_sinus = InitStimulus("sinus", rStimTimes, 4, 0, 500);
+        auto p_stim_extra = InitStimulus("extra", rStimTimes, 6, 400, 300);
 
         OverrideVoltageLookupRange();
         return AtrialCellFactory(p_stim_sinus, p_stim_extra, cell_model);
@@ -390,11 +415,10 @@ private:
         LOG("svi: " << (heartConfig->GetUseStateVariableInterpolation() ? "true" : "false"))
 
         if (args->OptionExists("-nodes")) {
-            std::string nodesopt = args->GetStringCorrespondingToOption("-nodes");
-            std::vector<unsigned> nodes = ParseNodeOption(nodesopt);
+            std::vector<unsigned> nodes = ParseMultiValueOption<unsigned>("-nodes");
             ApplyPerm(nodes, problem->rGetMesh().rGetNodePermutation());
             problem->SetOutputNodes(nodes);
-            LOG("nodes: " << nodesopt);
+            LOG("nodes: " << args->GetStringCorrespondingToOption("-nodes"));
         }
 
         AddActivationMap(problem);
@@ -466,7 +490,8 @@ public:
         COUT("Initializing");
         OutputFileHandler out_dir = InitOutput();
         InitTimesteps();
-        AtrialCellFactory cell_factory = InitCellFactory();
+        std::vector<double> stim_times;
+        AtrialCellFactory cell_factory = InitCellFactory(stim_times);
         MonodomainProblem<3>* problem = InitProblem(&cell_factory);
         AtrialConductivityModifier conductivity_modifier;
         InitConductivities(problem, conductivity_modifier);
