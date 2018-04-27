@@ -5,7 +5,7 @@ function [data, t, nodemap] = load_results(path)
 h5path = fullfile(path, 'results.h5');
 data = squeeze(h5read(h5path, '/Data'));
 t = h5read(h5path, '/Data_Unlimited');
-nodemap = [];
+nodemap = (1:size(data, 1))-1;
 if ~h5readatt(h5path, '/Data', 'IsDataComplete')
     nodemap = h5readatt(h5path, '/Data', 'NodeMap');
 end
@@ -16,15 +16,14 @@ if exist(ppath, 'file')
     perm=cell2mat(textscan(file_obj,'','headerlines',1,'delimiter',' ','collectoutput',1));
     fclose(file_obj);
     
-    iperm = zeros(size(perm, 1), 1);
-    iperm(perm(:, 2)+1) = 1:length(iperm);
     if ~isempty(nodemap)
+        iperm = zeros(size(perm, 1), 1);
+        iperm(perm(:, 2)+1) = 1:length(iperm);
         nodemap = iperm(nodemap+1)-1;
         [nodemap, k] = sort(nodemap);
         data = data(k, :);
     else
-        data = data(iperm, :);
-        nodemap = (1:length(iperm))-1;
+        data = data(perm(:, 2)+1, :);
     end
 end
 
