@@ -20,24 +20,29 @@
 #include <Version.hpp>
 #include <boost/lexical_cast.hpp>
 
-class AtrialCellFactory : public AbstractCardiacCellFactory<3> // <3> here
+enum CellModel
 {
-public:
-    static const int MALECKAR = 0;
-    static const int COURTEMANCHE_SR = 1;
-    static const int COURTEMANCHE_CAF = 2;
+    MALECKAR,
+    COURTEMANCHE_SR,
+    COURTEMANCHE_CAF
+};
 
+template<unsigned DIM>
+class AtrialCellFactory : public AbstractCardiacCellFactory<DIM>
+{
 private:
-
     boost::shared_ptr<AbstractStimulusFunction> p_stim_sinus;
     boost::shared_ptr<AbstractStimulusFunction> p_stim_extra;
     int p_cell_model;
+
+    using AbstractCardiacCellFactory<DIM>::mpSolver;
+    using AbstractCardiacCellFactory<DIM>::mpZeroStimulus;
 
 public:
     AtrialCellFactory() {}
 
     AtrialCellFactory(boost::shared_ptr<AbstractStimulusFunction> p_stim_sinus, boost::shared_ptr<AbstractStimulusFunction> p_stim_extra, int p_cell_model) :
-            AbstractCardiacCellFactory<3>(),
+            AbstractCardiacCellFactory<DIM>(),
 	        p_stim_sinus(p_stim_sinus),
 	        p_stim_extra(p_stim_extra),
             p_cell_model(p_cell_model)
@@ -46,7 +51,7 @@ public:
             EXCEPTION("Unknown Cell Model " << p_cell_model);
     }
     
-    AbstractCvodeCell* CreateCardiacCellForTissueNode(Node<3>* pNode)
+    AbstractCvodeCell* CreateCardiacCellForTissueNode(Node<DIM>* pNode)
     {
         unsigned lvrv = 1;
         unsigned pacing_site = 0;
@@ -91,84 +96,106 @@ public:
     }
 };
 
-
-class AtrialConductivityModifier : public AbstractConductivityModifier<3,3>
+template<unsigned DIM>
+class AtrialConductivityModifier : public AbstractConductivityModifier<DIM,DIM>
 {
 private:
 	
-    c_matrix<double,3,3> mTensor;
-    AbstractTetrahedralMesh<3,3>* pMesh;
+    c_matrix<double,DIM,DIM> mTensor;
+    AbstractTetrahedralMesh<DIM,DIM>* pMesh;
     std::vector<float> conductivities;
     
 public:
     AtrialConductivityModifier() {}
 
-    AtrialConductivityModifier(AbstractTetrahedralMesh<3,3>* mesh, const std::vector<float> &conductivities) :
-            AbstractConductivityModifier<3,3>(),
-            mTensor(zero_matrix<double>(3,3)),
-            pMesh(mesh),
+    AtrialConductivityModifier(const std::vector<float> &conductivities) :
+            AbstractConductivityModifier<DIM,DIM>(),
+            mTensor(zero_matrix<double>(DIM,DIM)),
+            pMesh(NULL),
             conductivities(conductivities)
     {
+    }
+
+    void SetMesh(AbstractTetrahedralMesh<DIM,DIM>* mesh) {
+        pMesh = mesh;
         assert(conductivities.size() == 0 || conductivities.size() == mesh->GetNumElements());
     }
-    
-    c_matrix<double,3,3>& rCalculateModifiedConductivityTensor(unsigned elementIndex, const c_matrix<double,3,3>& rOriginalConductivity, unsigned domainIndex)
-    {
+
+    void ApplyTissueConductivity(unsigned elementIndex, unsigned tissue_class) {
         double gll;
         double gtt;
-
-    	// read element attribute and tune conductivity
-    	int a=pMesh->GetElement(elementIndex)->rGetElementAttributes()[0];
-
-
-    	//*************** TUNE CONDUCTIVITY PER TISSUE CLASS !! ******************/
-    	if ((a==32) || (a==33) || (a==76) || (a==111) || (a==192) || (a==193) || (a==194) || (a==195) || (a==196) || (a==197) || (a==198) || (a==199) || (a==112) || (a==161) || (a==162))       
-    	{
-    		gll = 2.0;
-    		gtt = 1.0;
-    	}
-    	// sinus node and surroundings
-    	else if ((a==80) || (a==81) || (a==82) || (a==83) || (a==84) || (a==85) || (a==86))
-    	{
-    		gll = 0.5;
-    		gtt = 0.5;
-    	}
-    	
-    	else if (a==72) // crista terminalis
-    	{
-    		gll = 7.7;
-    		gtt = 0.7;
-    	}
-    	
-    	else if ((a==74) || (a==98) || (a==102) || (a==103)) // pectinatae muscles, Bachman Bundle
-    	{
-    		gll = 5.5;
-    		gtt = 2.75;
-    	}
-    	else if (a==104) // right atrial ithmus
-    	{
-    		gll = 1.1;
-    		gtt = 1.1;
-    	}
-        else
-        {
-            EXCEPTION("Unknown cell class " << a << " at " << elementIndex);
+        switch (tissue_class) {
+            case 32:
+            case 33:
+            case 76:
+            case 111:
+            case 112:
+            case 161:
+            case 162:
+            case 192:
+            case 193:
+            case 194:
+            case 195:
+            case 196:
+            case 197:
+            case 198:
+            case 199:
+                gll = 2.0;
+                gtt = 1.0;
+                break;
+            case 80:
+            case 81:
+            case 82:
+            case 83:
+            case 84:
+            case 85:
+            case 86:
+                // sinus node and surroundings
+                gll = 0.5;
+                gtt = 0.5;
+                break;
+            case 72:
+                // crista terminalis
+                gll = 7.7;
+                gtt = 0.7;
+                break;
+            case 74:
+            case 98:
+            case 102:
+            case 103:
+                // pectinatae muscles, Bachman Bundle
+                gll = 5.5;
+                gtt = 2.75;
+                break;
+            case 104:
+                gll = 1.1;
+                gtt = 1.1;
+                break;
+            default:
+                EXCEPTION("Unknown tissue class " << tissue_class << " at " << elementIndex);
         }
+
+        mTensor(0,0) = gll;
+        for (unsigned i = 1; i < DIM; i++)
+            mTensor(i, i) = gtt;
+    }
+    
+    c_matrix<double,DIM,DIM>& rCalculateModifiedConductivityTensor(unsigned elementIndex, const c_matrix<double,DIM,DIM>& rOriginalConductivity, unsigned domainIndex)
+    {
+        Element<DIM, DIM> *ele = pMesh->GetElement(elementIndex);
+        if (ele->GetNumElementAttributes() > 0)
+            ApplyTissueConductivity(elementIndex, (unsigned)ele->rGetElementAttributes()[0]);
+        else
+            mTensor.assign(rOriginalConductivity);
 
         if (conductivities.size() > 0)
-        {
-            double f = conductivities[elementIndex];
-            gll *= f;
-            gtt *= f;
-        }
+            mTensor *= conductivities[elementIndex];
 
-    	mTensor(0,0) = gll;
-        mTensor(1,1) = gtt;
-        mTensor(2,2) = gtt;
         return mTensor;
     }
 };
 
+template<unsigned DIM>
 class AtrialFibrosis
 {
 private:
@@ -336,7 +363,7 @@ private:
         return boost::shared_ptr<AbstractStimulusFunction>(new TimedStimulus(-80000.0, 1.0, times));
     }
 
-    AtrialCellFactory InitCellFactory(std::vector<double> &rStimTimes) {
+    AtrialCellFactory<DIM> InitCellFactory(std::vector<double> &rStimTimes) {
         LOG("** CELLS **")
         std::string cellopt = "courtemanche_sr";
         if (CommandLineArguments::Instance()->OptionExists("-cell"))
@@ -344,11 +371,11 @@ private:
 
         int cell_model;
         if (cellopt == "maleckar")
-            cell_model = AtrialCellFactory::MALECKAR;
+            cell_model = CellModel::MALECKAR;
         else if (cellopt == "courtemanche_sr")
-            cell_model = AtrialCellFactory::COURTEMANCHE_SR;
+            cell_model = CellModel::COURTEMANCHE_SR;
         else if (cellopt == "courtemanche_caf")
-            cell_model = AtrialCellFactory::COURTEMANCHE_CAF;
+            cell_model = CellModel::COURTEMANCHE_CAF;
         else
             EXCEPTION("Unknown Cell Model: " << cellopt);
         LOG("cell: " << cellopt);
@@ -357,7 +384,7 @@ private:
         auto p_stim_extra = InitStimulus("extra", rStimTimes, 6, 400, 300);
 
         OverrideVoltageLookupRange();
-        return AtrialCellFactory(p_stim_sinus, p_stim_extra, cell_model);
+        return AtrialCellFactory<DIM>(p_stim_sinus, p_stim_extra, cell_model);
     }
 
     void ApplyPerm(std::vector<unsigned int> &nodes, const std::vector<unsigned int> &permutation) {
@@ -369,7 +396,7 @@ private:
         std::sort(nodes.begin(), nodes.end());
     }
 
-    void AddActivationMap(MonodomainProblem<3> *problem, const std::vector<double> &rStimTimes) {
+    void AddActivationMap(MonodomainProblem<DIM> *problem, const std::vector<double> &rStimTimes) {
         if (CommandLineArguments::Instance()->OptionExists("-nosnapshots"))
             return;
 
@@ -388,11 +415,18 @@ private:
         LOG("\tresting  : " << resting << "mV")
     }
 
-    MonodomainProblem<3> *InitProblem(AtrialCellFactory *cell_factory)
+    chaste::parameters::v2017_1::media_type GetFibreOrientation(std::string meshfile) {
+        if (FileFinder(meshfile + ".ortho", RelativeTo::AbsoluteOrCwd).IsFile())
+            return cp::media_type::Orthotropic;
+
+        return cp::media_type::Axisymmetric;
+    }
+
+    MonodomainProblem<DIM> *InitProblem(AtrialCellFactory<DIM> *cell_factory, AtrialConductivityModifier<DIM> *conductivity_modifier)
     {
         CommandLineArguments* args = CommandLineArguments::Instance();
         HeartConfig* heartConfig = HeartConfig::Instance();
-        MonodomainProblem<3>* problem;
+        MonodomainProblem<DIM>* problem;
 
         if (args->OptionExists("-svi"))
             heartConfig->SetUseStateVariableInterpolation(true);
@@ -401,14 +435,14 @@ private:
         if (args->OptionExists("-loaddir")) {
             std::string loaddir = args->GetStringCorrespondingToOption("-loaddir");
             LOG("loaddir: " << loaddir);
-            problem = CardiacSimulationArchiver<MonodomainProblem<3> >::Load(loaddir);
+            problem = CardiacSimulationArchiver<MonodomainProblem<DIM> >::Load(loaddir);
         }
         else {
             std::string meshfile = args->GetStringCorrespondingToOption("-meshfile");
             LOG("meshfile: " << meshfile);
-            heartConfig->SetMeshFileName(meshfile, cp::media_type::Axisymmetric);
+            heartConfig->SetMeshFileName(meshfile, GetFibreOrientation(meshfile));
 
-            problem = new MonodomainProblem<3>(cell_factory);
+            problem = new MonodomainProblem<DIM>(cell_factory);
             problem->SetWriteInfo();
             problem->Initialise();
         }
@@ -429,10 +463,13 @@ private:
         heartConfig->SetVisualizeWithParallelVtk(args->OptionExists("-vtk"));
         LOG("vtk: " << (heartConfig->GetVisualizeWithParallelVtk() ? "true" : "false"));
 
+        conductivity_modifier->SetMesh(&problem->rGetMesh());
+        problem->GetTissue()->SetConductivityModifier(conductivity_modifier);
+
         return problem;
     }
 
-    void InitConductivities(MonodomainProblem<3> *problem, AtrialConductivityModifier& modifier) {
+    AtrialConductivityModifier<DIM> InitConductivities() {
         HeartConfig::Instance()->SetIntracellularConductivities(Create_c_vector(1.75, 0.19, 0.19));
 
         std::vector<float> conductivities;
@@ -442,16 +479,15 @@ private:
             conductivities = ConductivityReader::ReadConductivities(FileFinder(path, RelativeTo::AbsoluteOrCwd));
         }
 
-        modifier = AtrialConductivityModifier(&problem->rGetMesh(), conductivities);
-        problem->GetTissue()->SetConductivityModifier( &modifier );
+        return AtrialConductivityModifier<DIM>(conductivities);
     }
 
-    void Save(MonodomainProblem<3> *problem) {
+    void Save(MonodomainProblem<DIM> *problem) {
         if (CommandLineArguments::Instance()->OptionExists("-savedir"))
         {
             std::string savedir = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-savedir");
             LOG("savedir: " << savedir);
-            CardiacSimulationArchiver<MonodomainProblem<3> >::Save(*problem, savedir);
+            CardiacSimulationArchiver<MonodomainProblem<DIM> >::Save(*problem, savedir);
         }
     }
 
@@ -465,7 +501,7 @@ private:
         os->close();
     }
 
-    void WritePermutation(OutputFileHandler out_dir, MonodomainProblem<3> *problem)
+    void WritePermutation(OutputFileHandler out_dir, MonodomainProblem<DIM> *problem)
     {
         if (!PetscTools::AmMaster())
             return;
@@ -481,7 +517,7 @@ private:
     }
 
 public:
-    void TestMonodomain3dAtria() throw(Exception)
+    void RunSimulation() throw(Exception)
     {
         double start_time = Timer::GetWallTime();
         SetSchemaLocations();
@@ -490,10 +526,9 @@ public:
         OutputFileHandler out_dir = InitOutput();
         InitTimesteps();
         std::vector<double> stim_times;
-        AtrialCellFactory cell_factory = InitCellFactory(stim_times);
-        MonodomainProblem<3>* problem = InitProblem(&cell_factory);
-        AtrialConductivityModifier conductivity_modifier;
-        InitConductivities(problem, conductivity_modifier);
+        AtrialCellFactory<DIM> cell_factory = InitCellFactory(stim_times);
+        AtrialConductivityModifier<DIM> conductivity_modifier = InitConductivities();
+        MonodomainProblem<DIM>* problem = InitProblem(&cell_factory, &conductivity_modifier);
         AddActivationMap(problem, stim_times);
 
         COUT("Solving");
@@ -516,6 +551,41 @@ public:
     }
 };
 
+void GetNextLineFromStream(std::ifstream& rFileStream, std::string& rRawLine)
+{
+    bool line_is_blank;
+    do
+    {
+        getline(rFileStream, rRawLine, '\n');
+        if (rFileStream.eof())
+            EXCEPTION("File contains incomplete data: unexpected end of file.");
+
+        // Get rid of any comment
+        rRawLine = rRawLine.substr(0, rRawLine.find('#',0));
+
+        line_is_blank = (rRawLine.find_first_not_of(" \t",0) == std::string::npos);
+    }
+    while (line_is_blank);
+}
+
+bool Is2dMesh()
+{
+    if (!CommandLineArguments::Instance()->OptionExists("-meshfile"))
+        return false;
+
+    std::string nodeFileName = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-meshfile") + ".node";
+    ifstream nodeFile(FileFinder(nodeFileName, RelativeTo::AbsoluteOrCwd).GetAbsolutePath().c_str());
+    if (!nodeFile.is_open())
+        return false;
+
+    std::string buffer;
+    GetNextLineFromStream(nodeFile, buffer);
+    std::stringstream node_header_line(buffer);
+    unsigned mNumNodes, dimension;
+    node_header_line >> mNumNodes >> dimension;
+    return dimension == 2;
+}
+
 int main(int argc, char *argv[])
 {
     ExecutableSupport::InitializePetsc(&argc, &argv);
@@ -533,7 +603,10 @@ int main(int argc, char *argv[])
 
     try
     {
-        AtrialFibrosis().TestMonodomain3dAtria();
+        if (Is2dMesh())
+            AtrialFibrosis<2>().RunSimulation();
+        else
+            AtrialFibrosis<3>().RunSimulation();
     }
     catch (const Exception& e)
     {
