@@ -343,24 +343,29 @@ private:
         }
 
         LOG(name << ":");
-        LOG("\tcycles: " << times.size());
+        double stim_dur = GetDoubleOption("-stim_dur", 1.0);
+        double stim_amp = GetDoubleOption("-stim_amp", 80000.0);
+        LOG("\tduration : " << odet << "ms");
+        LOG("\tamplitude: " << pdet << "ms");
+
+        LOG("\tcycles   : " << times.size());
         if (!times.empty()) {
-            LOG("\tfirst : " << times[0] << "ms");
-            LOG("\tlast  : " << times.back() << "ms");
+            LOG("\tfirst    : " << times[0] << "ms");
+            LOG("\tlast     : " << times.back() << "ms");
             if (user_defined) {
                 std::stringstream ss;
                 ss << times[0];
                 for (unsigned i = 1; i < times.size(); i++)
                     ss << ", " << times[i];
 
-                LOG("\ttimes : " << ss.str());
+                LOG("\ttimes    : " << ss.str());
             }
             else
-                LOG("\tperiod: " << period << "ms");
+                LOG("\tperiod   : " << period << "ms");
         }
 
         rStimTimes.insert( rStimTimes.end(), times.begin(), times.end() );
-        return boost::shared_ptr<AbstractStimulusFunction>(new TimedStimulus(-80000.0, 1.0, times));
+        return boost::shared_ptr<AbstractStimulusFunction>(new TimedStimulus(-stim_amp, stim_dur, times));
     }
 
     AtrialCellFactory<DIM> InitCellFactory(std::vector<double> &rStimTimes) {
