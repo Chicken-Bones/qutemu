@@ -345,8 +345,8 @@ private:
         LOG(name << ":");
         double stim_dur = GetDoubleOption("-stim_dur", 1.0);
         double stim_amp = GetDoubleOption("-stim_amp", 80000.0);
-        LOG("\tduration : " << odet << "ms");
-        LOG("\tamplitude: " << pdet << "ms");
+        LOG("\tduration : " << stim_dur << "ms");
+        LOG("\tamplitude: " << stim_amp << "ms");
 
         LOG("\tcycles   : " << times.size());
         if (!times.empty()) {
