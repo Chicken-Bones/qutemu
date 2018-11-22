@@ -475,12 +475,16 @@ private:
     }
 
     AtrialConductivityModifier<DIM> InitConductivities() {
-        HeartConfig::Instance()->SetIntracellularConductivities(Create_c_vector(1.75, 0.19, 0.19));
+		double base_cond = GetDoubleOption("-base_cond", 1.75);
+		double anisotropy_ratio = GetDoubleOption("-ar", 9.21);
+		LOG("\tbase conductivity: " << base_cond);
+		LOG("\tanisotropy ratio : " << anisotropy_ratio);
+        HeartConfig::Instance()->SetIntracellularConductivities(Create_c_vector(base_cond, base_cond/anisotropy_ratio, base_cond/anisotropy_ratio));
 
         std::vector<float> conductivities;
         if (CommandLineArguments::Instance()->OptionExists("-condmod")) {
             std::string path = CommandLineArguments::Instance()->GetStringCorrespondingToOption("-condmod");
-            LOG("conductivities: " << path);
+            LOG("conductivities   : " << path);
             conductivities = ConductivityReader::ReadConductivities(FileFinder(path, RelativeTo::AbsoluteOrCwd));
         }
 
