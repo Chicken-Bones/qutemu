@@ -39,7 +39,7 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 
 ### Command Line Arguments
 | Switch | Params | Default | Description |
-| - | - | - | - |
+| --- | --- | --- | --- |
 | `-meshfile` | `<path>` | `!!required!!` | path to atrial mesh (wthout the .node extension)
 | `-outdir` | `<dir>` | `ChasteResults` | sets output directory to `testoutput/<dir>`
 | `-loaddir` | `<dir>` |  | Simulation will be resumed* from a state in `testoutput/<dir>`. `-meshfile` will be ignored
