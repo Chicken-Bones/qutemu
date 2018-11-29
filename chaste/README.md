@@ -59,7 +59,8 @@ If you want to copy the output to another directory, you can use `ldd AtrialFibr
 | `-dextra` | `<delay>` | `300` | Delay between last sinoatrial trigger and first ectopic trigger (ms) |
 | `-pextra` | `<period>` | `150` | Period of ectopic trigger (ms) |
 | `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
-| `-nextra` | `<num>` | `6` | Number of ectopic triggers  |
+| `-base_cond` | `<num>` | `1.75` | Base conductivity value (in Chaste's units). Not used if anatomical locations specificed in the .ele file |
+| `-ar` | `<num>` | `9.21` | Ratio of conductivity values between longitudinal and transverse (default value here and for -base_cond corresponds to Chaste's traditional (1.75, 0.19, 0.19) conductivity) |
 | `-condmod` | `<file>` || A file with one line per element containing conductivity multipliers
 | `-svi` ||| Enables state-variable interpolation https://chaste.cs.ox.ac.uk/trac/wiki/ChasteGuides/StateVariableInterpolation
 | `-activation` | `<threshold>` | `-40` | Activation threshold used for generating snapshots (mV). |
