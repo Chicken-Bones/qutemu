@@ -5,6 +5,8 @@
 #include "SteadyStateRunner.hpp"
 #include "CardiacSimulationArchiver.hpp"
 
+#include "Maleckar2008_baseCvodeOpt.hpp"
+#include "Maleckar2008_cAFCvodeOpt.hpp"
 #include "Maleckar2008_LA_1h2HzCvodeOpt.hpp"
 #include "Maleckar2008_RA_1h2HzCvodeOpt.hpp"
 #include "courtemanche_ramirez_nattel_1998_SRCvodeOpt.hpp"
