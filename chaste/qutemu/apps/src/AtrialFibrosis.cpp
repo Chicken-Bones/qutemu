@@ -23,6 +23,8 @@
 enum CellModel
 {
     MALECKAR,
+	MALECKAR_CAF,
+	MALECKAR_ANNA,
     COURTEMANCHE_SR,
     COURTEMANCHE_CAF
 };
@@ -80,7 +82,11 @@ public:
         }
 
         switch (p_cell_model) {
-            case MALECKAR:
+			case MALECKAR:
+				return new CellMaleckar2008_baseFromCellMLCvodeOpt(mpSolver, stimulus);
+			case MALECKAR_CAF:
+				return new CellMaleckar2008_baseFromCellMLCvodeOpt(mpSolver, stimulus);
+            case MALECKAR_ANNA:
                 if (lvrv == 1)
                     return new CellMaleckar2008_LA_1h2HzFromCellMLCvodeOpt(mpSolver, stimulus);
                 else
