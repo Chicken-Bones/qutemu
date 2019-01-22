@@ -242,7 +242,7 @@ private:
                 Cellcourtemanche_ramirez_nattel_1998_cAFFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
         };
 
-        for (int i = 0; i < (sizeof(tables) / sizeof(tables[0])); i++) {
+        for (unsigned int i = 0; i < (sizeof(tables) / sizeof(tables[0])); i++) {
             AbstractLookupTableCollection *p_tables = tables[i];
             double min, step, max;
             p_tables->GetTableProperties("membrane__V", min, step, max);
