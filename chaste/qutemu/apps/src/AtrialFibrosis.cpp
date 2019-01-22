@@ -87,7 +87,7 @@ public:
             case MALECKAR:
                 return new CellMaleckar2008_baseFromCellMLCvodeOpt(mpSolver, stimulus);
             case MALECKAR_CAF:
-                return new CellMaleckar2008_baseFromCellMLCvodeOpt(mpSolver, stimulus);
+                return new CellMaleckar2008_cAFFromCellMLCvodeOpt(mpSolver, stimulus);
             case MALECKAR_ANNA:
                 if (lvrv == 1)
                     return new CellMaleckar2008_LA_1h2HzFromCellMLCvodeOpt(mpSolver, stimulus);
@@ -234,13 +234,15 @@ private:
         boost::shared_ptr<AbstractIvpOdeSolver> noSolver;
         boost::shared_ptr<AbstractStimulusFunction> noStim;
         AbstractLookupTableCollection *tables[] = {
+                CellMaleckar2008_baseFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
+                CellMaleckar2008_cAFFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
                 CellMaleckar2008_LA_1h2HzFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
                 CellMaleckar2008_RA_1h2HzFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
                 Cellcourtemanche_ramirez_nattel_1998_SRFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
                 Cellcourtemanche_ramirez_nattel_1998_cAFFromCellMLCvodeOpt(noSolver, noStim).GetLookupTableCollection(),
         };
 
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < (sizeof(tables) / sizeof(tables[0])); i++) {
             AbstractLookupTableCollection *p_tables = tables[i];
             double min, step, max;
             p_tables->GetTableProperties("membrane__V", min, step, max);
@@ -385,6 +387,10 @@ private:
         int cell_model;
         if (cellopt == "maleckar")
             cell_model = CellModel::MALECKAR;
+        else if (cellopt == "maleckar_caf")
+            cell_model = CellModel::MALECKAR_CAF;
+        else if (cellopt == "maleckar_anna")
+            cell_model = CellModel::MALECKAR_ANNA;
         else if (cellopt == "courtemanche_sr")
             cell_model = CellModel::COURTEMANCHE_SR;
         else if (cellopt == "courtemanche_caf")
